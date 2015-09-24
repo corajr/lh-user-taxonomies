@@ -160,20 +160,36 @@ class LH_User_Taxonomies_plugin {
 			echo $term->count;
 		}
 	}
-	private function buildTree( array &$elements, $parentId = 0 ) {
-	    $branch = array();
-	    foreach ($elements as $element) {
-	        if ($element->parent == $parentId) {
-	            $children = $this->buildTree($elements, $element->term_id);
-	            if ($children) {
-	                $element->children = $children;
-	            }
-	            $branch[$element->term_id] = $element;
-	            unset($elements[$element->term_id]);
-	        }
-	    }
-	    return $branch;
+	private function buildTree( array $elements ) {
+		$tree = array();
+
+		if (!empty($elements)) {
+			$term_hier = _get_term_hierarchy(reset($elements)->taxonomy);
+
+			$by_id = array();
+
+			foreach ($elements as $element) {
+				$term_id = $element->term_id;
+				$by_id[$term_id] = $element;
+				if (!(array_key_exists($term_id, $term_hier)) && $element->parent == 0) {
+					// childless top-level terms
+					$tree[$term_id] = $element;
+				}
+			}
+
+			foreach ($term_hier as $parent_id=>$child_ids) {
+				$element = $by_id[$parent_id];
+				$element->children = array_intersect_key($by_id, array_flip($child_ids));
+
+				if ($element->parent == 0) {
+					$tree[$parent_id] = $element;
+				}
+			}
+		}
+
+		return $tree;
 	}
+
 	private function renderTree( $elements, $stack, $user, $key, $input = 'checkbox' ) {
 		foreach ( $elements as $element ) {
 			?>
